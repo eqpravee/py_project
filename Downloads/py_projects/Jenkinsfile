@@ -1,0 +1,44 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                sh "pip install -r requirements.txt"
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                script {
+                    def rand = UUID.randomUUID().toString().take(6)
+                    def timestamp = new Date().format("yyyyMMdd_HHmmss")
+                    env.REPORT_NAME = "report_${timestamp}_${rand}.html"
+                }
+
+                sh """
+                    pytest --junitxml=reports/results.xml --html=reports/${env.REPORT_NAME} --self-contained-html
+                """
+            }
+        }
+
+        stage('Publish Reports') {
+            steps {
+                junit "reports/results.xml"
+                publishHTML(target: [
+                    allowMissing: false,
+                    keepAll: true,
+                    reportDir: "reports",
+                    reportFiles: "${env.REPORT_NAME}",
+                    reportName: "Test Automation Report"
+                ])
+            }
+        }
+    }
+}
